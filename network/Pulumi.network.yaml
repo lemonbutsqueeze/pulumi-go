@@ -1,5 +1,4 @@
 config:
-  # aws:profile: app-admin
   aws:region: ap-southeast-1
   pulumi-go:Pulumi.network.yaml: ""
   pulumi:template: aws-go
