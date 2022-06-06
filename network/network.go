@@ -1,7 +1,6 @@
-package main
+package network
 
 import (
-	"bufio"
 	"context"
 	"log"
 	"os"
@@ -23,15 +22,12 @@ func authenticateAws(roleArn string, mfaSerialArn string) {
 
 	stsClient := sts.NewFromConfig(cfg)
 
-	println("Enter your MFA token: ")
-	text := bufio.NewReader(os.Stdin)
-	
 	provider := stscreds.NewAssumeRoleProvider(stsClient, roleArn, func(o *stscreds.AssumeRoleOptions) {
-		o.SerialNumber =  aws.String(mfaSerialArn),
-		// o.TokenProvider = text,
+		o.SerialNumber = aws.String(mfaSerialArn)
+		o.TokenProvider = stscreds.StdinTokenProvider
 	})
-	cfg.Credentials = aws.NewCredentialsCache(provider)
 
+	cfg.Credentials = aws.NewCredentialsCache(provider)
 	creds, err := cfg.Credentials.Retrieve(context.Background())
 
 	if err != nil {
@@ -65,14 +61,13 @@ func createVpc(ctx *pulumi.Context) (*ec2.Vpc, error) {
 // 	})
 // }
 
-func main() {
+func execute() {
 
-	authenticateAws("arn:aws:iam::523794149436:role/App-Admin")
-
+	authenticateAws("arn:aws:iam::523794149436:role/App-Admin", "test")
 	pulumi.Run(func(ctx *pulumi.Context) error {
 
 		vpc, err := createVpc(ctx)
-		config.getConfig()
+
 		if err != nil {
 			return err
 		}
