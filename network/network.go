@@ -13,7 +13,7 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
-func authenticateAws(roleArn string, mfaSerialArn string) {
+func AuthenticateAws(roleArn string, mfaSerialArn string) {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 
 	if err != nil {
@@ -41,7 +41,7 @@ func authenticateAws(roleArn string, mfaSerialArn string) {
 	println("Succesfully configured AWS credentials using role ARN: ", roleArn)
 }
 
-func createVpc(ctx *pulumi.Context) (*ec2.Vpc, error) {
+func CreateVpc(ctx *pulumi.Context) (*ec2.Vpc, error) {
 	vpc, err := ec2.NewVpc(ctx, "ApplicationVpc", &ec2.VpcArgs{
 		CidrBlock:        pulumi.String("10.0.0.0/16"),
 		EnableDnsSupport: pulumi.Bool(true),
@@ -61,12 +61,12 @@ func createVpc(ctx *pulumi.Context) (*ec2.Vpc, error) {
 // 	})
 // }
 
-func execute() {
+func Execute() {
 
-	authenticateAws("arn:aws:iam::523794149436:role/App-Admin", "test")
+	AuthenticateAws("", "")
 	pulumi.Run(func(ctx *pulumi.Context) error {
 
-		vpc, err := createVpc(ctx)
+		vpc, err := CreateVpc(ctx)
 
 		if err != nil {
 			return err
