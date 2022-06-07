@@ -1,0 +1,6 @@
+{
+    "AwsCredentials": {
+        "RoleArn": "",
+        "MfaSerialArn": ""
+    }
+}
