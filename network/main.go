@@ -1,12 +1,14 @@
-package network
+package main
 
 import (
 	"context"
 	"log"
 	"os"
 
+	"pulumi-go/config"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
@@ -14,7 +16,7 @@ import (
 )
 
 func AuthenticateAws(roleArn string, mfaSerialArn string) {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	cfg, err := awsConfig.LoadDefaultConfig(context.TODO())
 
 	if err != nil {
 		log.Fatalf("Failed to load configuration, %v", err)
@@ -61,9 +63,9 @@ func CreateVpc(ctx *pulumi.Context) (*ec2.Vpc, error) {
 // 	})
 // }
 
-func Execute() {
-
-	AuthenticateAws("", "")
+func main() {
+	cfg, _ := config.GetConfig("../config/config.json")
+	AuthenticateAws(cfg.AwsCredentials.RoleArn, cfg.AwsCredentials.MfaSerialArn)
 	pulumi.Run(func(ctx *pulumi.Context) error {
 
 		vpc, err := CreateVpc(ctx)

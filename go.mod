@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.15.9
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.4
 	github.com/aws/aws-sdk-go-v2/service/sts v1.16.6
-	github.com/pulumi/pulumi-aws/sdk/v5 v5.6.0
+	github.com/pulumi/pulumi-aws/sdk/v5 v5.7.0
 	github.com/pulumi/pulumi/sdk/v3 v3.33.2
 )
 

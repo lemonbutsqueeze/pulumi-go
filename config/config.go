@@ -16,11 +16,10 @@ type AwsCredentials struct {
 	MfaSerialArn string `json:"MfaSerialArn"`
 }
 
-func GetConfig() (Config, error) {
+func GetConfig(path string) (Config, error) {
 	var config Config
 
-	path, _ := os.Getwd()
-	jsonFile, err := os.Open(path + "/config/config.json")
+	jsonFile, err := os.Open(path)
 	if err != nil {
 		fmt.Println(err)
 		return config, err
