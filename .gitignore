@@ -16,3 +16,4 @@
 
 # config file
 config/config.json
+config/cached.json
