@@ -5,32 +5,51 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"io/ioutil"
+
+	log "github.com/sirupsen/logrus"
 )
 
-var (
-	CACHE_DIR_PATH   = "pulumi-go"
-	CACHE_FILE_NAME  = "cached.json"
-	CACHE_FULL_PATH  = CACHE_DIR_PATH + "/" + CACHE_FILE_NAME
+const (
+	CACHE_DIR_PATH   = "C:/Temp/pulumi-go"
+	CACHE_FILE_NAME  = "cache.json"
 	TIMESTAMP_FORMAT = "20060102150405"
 )
 
+var (
+	CACHE_FULL_PATH = filepath.Join(CACHE_DIR_PATH, CACHE_FILE_NAME)
+)
+
 type Cache struct {
-	AwsCredentials AwsCredentials `json:"AwsCredentials"`
+	IamProfile     IamProfile     `json:"IamProfile"`
 	CreateTime     string         `json:"CreateTime"`
+	AwsCredentials AwsCredentials `json:"AwsCredentials"`
 }
 
-func GetCache() (Cache, error) {
-	var cache Cache
+func IsFileExist(path string) bool {
+	log.Debug("Checking if file '" + path + "' exist ..")
+	if _, err := os.Stat(CACHE_FULL_PATH); errors.Is(err, os.ErrNotExist) {
+		log.Debug("File does not exist")
+		return false
+	}
+
+	log.Debug("File exist")
+	return true
+}
+
+func GetCache() (*Cache, error) {
+	var cache *Cache = &Cache{}
 
 	path := CACHE_FULL_PATH
 	jsonFile, err := os.Open(path)
 	if err != nil {
 		fmt.Println(err)
-		return cache, err
+		return nil, err
 	}
+
 	defer jsonFile.Close()
 
 	byteValue, _ := ioutil.ReadAll(jsonFile)
@@ -39,48 +58,62 @@ func GetCache() (Cache, error) {
 	return cache, err
 }
 
-func WriteTemp(content string) {
-	file, err := ioutil.TempFile(CACHE_DIR_PATH, CACHE_FILE_NAME)
+func WriteTempFile(content string) error {
 
+	log.Debug("Creating file at " + CACHE_FULL_PATH)
+	err := os.MkdirAll(CACHE_DIR_PATH, os.ModeTemporary)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
-	defer os.Remove(file.Name())
-
-	if _, err := file.Write([]byte(content)); err != nil {
-		fmt.Println(err)
+	file, err := os.OpenFile(CACHE_FULL_PATH, os.O_WRONLY|os.O_CREATE, os.ModeTemporary)
+	// file, err := os.Create(CACHE_FULL_PATH)
+	if err != nil {
+		return err
 	}
+
+	_, err = file.WriteString(content)
+	if err != nil {
+		return err
+	}
+
+	file.Sync()
+	defer file.Close()
+
+	return err
 }
 
-func CacheToJson(cache Cache) {
-	bytes, err := json.Marshal(cache)
+func CreateCache(iamProfile IamProfile, awsCredentials AwsCredentials) error {
+	var newCache Cache
+	newCache.IamProfile = iamProfile
+	newCache.CreateTime = time.Now().Format(TIMESTAMP_FORMAT)
+	newCache.AwsCredentials = awsCredentials
+
+	bytes, err := json.Marshal(newCache)
 
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 
-	WriteTemp(string(bytes))
+	return WriteTempFile(string(bytes))
 }
 
-func GetCachedAwsCredentials(awsCredentials AwsCredentials) AwsCredentials {
-	isCacheExist := true
-	if _, err := os.Stat(CACHE_FULL_PATH); errors.Is(err, os.ErrNotExist) {
-		isCacheExist = false
+func GetCachedAwsCredentials(iamProfile *IamProfile) (*AwsCredentials, error) {
+
+	if !IsFileExist(CACHE_FULL_PATH) {
+		return nil, nil
 	}
 
-	cache, _ := GetCache()
+	cache, err := GetCache()
+	if err != nil {
+		log.Warn("Failed while fetching cache", err)
+	}
+
 	cachedTime, _ := time.Parse(TIMESTAMP_FORMAT, cache.CreateTime)
-	if !isCacheExist || cache.AwsCredentials.RoleArn != awsCredentials.RoleArn || time.Since(cachedTime).Minutes() > 60 {
-		println("Cannot find existing cached creds")
-		var newCache Cache
-		newCache.AwsCredentials = awsCredentials
-		newCache.CreateTime = time.Now().Format(TIMESTAMP_FORMAT)
-		CacheToJson(newCache)
-		return awsCredentials
+	if cache.IamProfile.RoleArn != iamProfile.RoleArn || time.Since(cachedTime).Minutes() > 60 {
+		return nil, err
 	}
 
-	println("Re-using cached AWS credentials")
-	return cache.AwsCredentials
+	log.Info("Re-using cached AWS credentials")
+	return &cache.AwsCredentials, err
 }

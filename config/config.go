@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
@@ -18,16 +19,22 @@ var (
 )
 
 type Config struct {
-	AwsCredentials AwsCredentials `json:"AwsCredentials"`
+	IamProfile IamProfile `json:"IamProfile"`
 }
 
-type AwsCredentials struct {
+type IamProfile struct {
 	RoleArn      string `json:"RoleArn"`
 	MfaSerialArn string `json:"MfaSerialArn"`
 }
 
+type AwsCredentials struct {
+	AccessKey    string `json:"AccessKey"`
+	SecretKey    string `json:"SecretKey"`
+	SessionToken string `json:"SessionToken"`
+}
+
 func GetConfig(path string) (Config, error) {
-	println("Grabbing config file from " + path)
+	log.Info("Grabbing config file from " + path)
 	var config Config
 
 	jsonFile, err := os.Open(path)
@@ -44,11 +51,14 @@ func GetConfig(path string) (Config, error) {
 	return config, err
 }
 
-func AssumeRoleWithMfa(roleArn string, mfaSerialArn string) {
+func AssumeRoleWithMfa(roleArn string, mfaSerialArn string) error {
+	log.Info("Authenticating AWS with MFA using role '" + roleArn + "' ..")
+
 	cfg, err := awsConfig.LoadDefaultConfig(context.TODO())
 
 	if err != nil {
-		log.Fatalf("Failed to load configuration, %v", err)
+		log.Error("Failed to load configuration")
+		return err
 	}
 
 	stsClient := sts.NewFromConfig(cfg)
@@ -62,25 +72,54 @@ func AssumeRoleWithMfa(roleArn string, mfaSerialArn string) {
 	creds, err := cfg.Credentials.Retrieve(context.Background())
 
 	if err != nil {
-		log.Fatalf("Failed to retrieve role configuration, %v", err)
+		log.Error("Failed to load configuration")
+		return err
 	}
 
-	os.Setenv("AWS_ACCESS_KEY_ID", creds.AccessKeyID)
-	os.Setenv("AWS_SECRET_ACCESS_KEY", creds.SecretAccessKey)
-	os.Setenv("AWS_SESSION_TOKEN", creds.SessionToken)
+	SetAwsCredentials(creds.AccessKeyID, creds.SecretAccessKey, creds.SessionToken)
 
-	println("Succesfully configured AWS credentials using role ARN: ", roleArn)
+	log.Info("Successfully configured AWS credentials")
+	return err
 }
 
-func IsAuthenticated() bool {
-	_, exist := os.LookupEnv("AWS_SESSION_TOKEN")
-	return exist
+func SetAwsCredentials(accessKey string, secretKey string, sessionToken string) {
+	log.Debug("Setting AWS credentials using env vars ..")
+	os.Setenv("AWS_ACCESS_KEY_ID", accessKey)
+	os.Setenv("AWS_SECRET_ACCESS_KEY", secretKey)
+	os.Setenv("AWS_SESSION_TOKEN", sessionToken)
 }
 
-func AuthenticateAws() {
-	cfg, _ := GetConfig(CONFIG_FILE_PATH)
-	creds := GetCachedAwsCredentials(cfg.AwsCredentials)
+func GetCurrentAwsCredentials() *AwsCredentials {
+	var awsCredentials *AwsCredentials = &AwsCredentials{
+		AccessKey:    os.Getenv("AWS_ACCESS_KEY_ID"),
+		SecretKey:    os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		SessionToken: os.Getenv("AWS_SESSION_TOKEN"),
+	}
 
-	println("Authenticating with AWS ..")
-	AssumeRoleWithMfa(creds.RoleArn, creds.MfaSerialArn)
+	return awsCredentials
+}
+
+func AuthenticateAws() error {
+	cfg, err := GetConfig(CONFIG_FILE_PATH)
+	if err != nil {
+		return err
+	}
+
+	cachedCreds, err := GetCachedAwsCredentials(&cfg.IamProfile)
+	if err != nil {
+		return err
+	}
+
+	if cachedCreds == nil {
+		err := AssumeRoleWithMfa(cfg.IamProfile.RoleArn, cfg.IamProfile.MfaSerialArn)
+		if err != nil {
+			return err
+		}
+
+		CreateCache(cfg.IamProfile, *GetCurrentAwsCredentials())
+	} else {
+		SetAwsCredentials(cachedCreds.AccessKey, cachedCreds.SecretKey, cachedCreds.SessionToken)
+	}
+
+	return err
 }

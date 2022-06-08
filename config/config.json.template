@@ -1,6 +1,10 @@
 {
-    "AwsCredentials": {
+    "IamProfile": {
         "RoleArn": "",
-        "MfaSerialArn": ""
+        "MfaSerialArn": "",
+        "MfaEnabled": true,
+        "ProfileName": "default",
+        "AccessKey": "",
+        "SecretKey": ""
     }
 }
