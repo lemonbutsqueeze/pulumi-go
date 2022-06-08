@@ -23,9 +23,8 @@ type Config struct {
 }
 
 type IamProfile struct {
-	RoleArn        string `json:"RoleArn"`
-	MfaSerialArn   string `json:"MfaSerialArn"`
-	AwsCredentials string `json:"AwsCredentials"`
+	RoleArn      string `json:"RoleArn"`
+	MfaSerialArn string `json:"MfaSerialArn"`
 }
 
 type AwsCredentials struct {

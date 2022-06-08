@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	CACHE_DIR_PATH   = "pulumi-go"
-	CACHE_FILE_NAME  = "cached.json"
+	CACHE_DIR_PATH   = "C:/Temp/pulumi-go"
+	CACHE_FILE_NAME  = "cache.json"
 	TIMESTAMP_FORMAT = "20060102150405"
 )
 
@@ -61,7 +61,12 @@ func GetCache() (*Cache, error) {
 func WriteTempFile(content string) error {
 
 	log.Debug("Creating file at " + CACHE_FULL_PATH)
-	file, err := os.OpenFile(CACHE_FULL_PATH, os.O_RDONLY|os.O_CREATE, os.FileMode(os.O_CREATE))
+	err := os.MkdirAll(CACHE_DIR_PATH, os.ModeTemporary)
+	if err != nil {
+		return err
+	}
+
+	file, err := os.OpenFile(CACHE_FULL_PATH, os.O_WRONLY|os.O_CREATE, os.ModeTemporary)
 	// file, err := os.Create(CACHE_FULL_PATH)
 	if err != nil {
 		return err
